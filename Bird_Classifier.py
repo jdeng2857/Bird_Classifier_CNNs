@@ -13,35 +13,22 @@ from PIL import Image
 
 class BirdDataGenerator(tf.keras.utils.Sequence):
 
-    def __init__(self, csv_file, use_rows, batch_size):
+    def __init__(self, use_rows, batch_size, csv_file="birds.csv"):
         self.csv_df = pd.read_csv(csv_file)
         self.use_rows = use_rows
         self.batch_size = batch_size
         self.dataset = pd.DataFrame(self.csv_df).to_numpy()
 
-        self.labels = self.dataset[:, 2]
-        self.img_filepaths = self.dataset[:, 1]
-        self.class_ids = self.dataset[:, 0]
+        self.labels = self.dataset[:,2]
+        self.img_filepaths = self.dataset[:,1]
+        self.class_ids = self.dataset[:,0]
 
         (x,) = self.img_filepaths.shape
-
+        print(self.dataset.shape)
         print(self.img_filepaths[0])
         image = Image.open(self.img_filepaths[0])
         image_array = np.expand_dims(np.asarray(image), axis=0)
-
-        print(image_array)
         print(image_array.shape)
-
-    #         self.images = []
-
-    #         for i in range(0, 10):
-    #             image = Image.open(self.img_filepaths[0])
-    #             image_array = np.expand_dims(np.asarray(image), axis=0)
-    #             self.images.append(image_array)
-
-    #         self.images = np.array(self.images)
-
-    #         print(self.images.shape)
 
     def __len__(self):
         # batches_per_epoch is the total number of batches used for one epoch
@@ -55,28 +42,68 @@ class BirdDataGenerator(tf.keras.utils.Sequence):
         x = None
         y = None
 
-        images = []
-        labels = []
-
         for curr_id in batch_ids:
-            image = Image.open(self.img_filepaths[curr_id])
-            img_array = np.expand_dims(np.asarray(image), axis=0)
-            images.append(img_array)
-            labels.append(self.labels[curr_id])
+            image = Image.open(self.img_filepaths[curr_id]).resize((224,224))
+            image_array = np.expand_dims(np.asarray(image),axis=0)
 
-        images = np.array(images)
-        labels = np.array(labels)
-        print(images.shape)
-        print(labels.shape)
+            if x is None:
+                x = image_array
+                y = self.class_ids[curr_id]
+            else:
+                x = np.vstack((x, image_array))
+                y = np.vstack((y, self.class_ids[curr_id]))
 
-        x = images
-        y = labels
-
+        y = tf.keras.utils.to_categorical(y, num_classes=511)
         return x, y
-
-    def on_epoch_end(self):
-        np.random.shuffle(self.split_ids)
 
 use_rows = list(range(0,87050))
 bird_data_generator = BirdDataGenerator(csv_file="birds.csv", use_rows=use_rows, batch_size=128)
 bird_data_generator.__getitem__(0)
+
+def bird_cnn_model(csv_file):
+    model = Sequential([
+        InputLayer(input_shape=(224,224,3)),
+        Conv2D(filters=32, kernel_size=3, activation='relu'),
+        BatchNormalization(),
+        MaxPooling2D(pool_size=2),
+        Flatten(),
+        Dense(511, activation="softmax")
+    ])
+
+    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3)
+    model.compile(loss="categorical_crossentropy", optimizer = optimizer, metrics=["accuracy"])
+
+    print(model.summary())
+    train_rows = list(range(0,81950))
+    train_generator = BirdDataGenerator(csv_file=csv_file, use_rows=train_rows, batch_size=64)
+    h = model.fit(x=train_generator, epochs=10, verbose=1)
+    print(h)
+
+    test_rows = list(range(81950, 84500))
+    test_generator = BirdDataGenerator(csv_file=csv_file, use_rows=test_rows, batch_size=128)
+    model.evaluate(x=test_generator)
+
+    return model
+
+one_epoch_model = tf.keras.models.load_model("batch_normalized_1_epoch")
+one_epoch_model.summary()
+test_image = Image.open("images to predict/1.jpg").resize((224,224))
+image_array = np.expand_dims(np.asarray(test_image),axis=0)
+print(image_array)
+predict_x = one_epoch_model.predict(image_array)
+classes_x = np.argmax(predict_x, axis=1)
+print(classes_x)
+
+# Generate class labels
+csv_df = pd.read_csv("birds.csv")
+dataset = pd.DataFrame(csv_df).to_numpy()
+labels = dataset[:,2]
+class_ids = dataset[:,0]
+
+print(labels.shape)
+print(class_ids.shape)
+
+label_mapping = {}
+id_to_name = dict(zip(class_ids, labels))
+print(id_to_name)
+print(id_to_name[classes_x])
