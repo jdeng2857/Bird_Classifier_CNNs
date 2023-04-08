@@ -106,4 +106,4 @@ print(class_ids.shape)
 label_mapping = {}
 id_to_name = dict(zip(class_ids, labels))
 print(id_to_name)
-print(id_to_name[classes_x])
+print(id_to_name[classes_x[0]])
