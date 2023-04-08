@@ -17,5 +17,10 @@
     {% if predicted_class %}
         <h3>Predicted bird species: {{predicted_class}}</h3>
     {% endif %}
+
+    {% if image_url %}
+        <h4>Uploaded Image: </h4>
+        <img src="{{image_url}}" alt="Uploaded image"/>
+    {% endif %}
 </body>
 </html>

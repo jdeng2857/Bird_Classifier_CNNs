@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, url_for, send_from_directory
 from flask_wtf import FlaskForm
 from wtforms import FileField, SubmitField
 from wtforms.validators import InputRequired
@@ -17,6 +17,10 @@ class UploadFileForm(FlaskForm):
     file = FileField("File", validators=[InputRequired()])
     submit = SubmitField("Upload and Classify Image")
 
+@app.route('/uploads/<filename>')
+def get_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/home', methods=['GET', 'POST'])
 def home():
@@ -29,8 +33,18 @@ def home():
             secure_filename(file.filename)
         )
         file.save(filepath)
+        print(filepath)
         predicted_class = classifyImage(filepath)
-        return render_template('index.html', form=form, predicted_class=predicted_class)
+        print(file.filename)
+        print(app.config['UPLOAD_FOLDER'])
+        image_url = "/uploads/" + file.filename
+
+        return render_template(
+            'index.html',
+            form=form,
+            image_url=image_url,
+            predicted_class=predicted_class
+        )
 
     return render_template('index.html', form=form)
 
