@@ -5,13 +5,17 @@
     <title>FlaskApp</title>
 </head>
 <body>
-    <h1>Hello World!</h1>
-    <h2>Welcome to FlaskApp!</h2>
+    <h1>Bird Species Recognizer</h1>
+    <h2>Upload valid image, classifier returns most likely out of 510 bird species</h2>
 
     <form method="POST" enctype="multipart/form-data">
         {{form.hidden_tag()}}
         {{form.file()}}
         {{form.submit()}}
     </form>
+
+    {% if predicted_class %}
+        <h3>Predicted bird species: {{predicted_class}}</h3>
+    {% endif %}
 </body>
 </html>
