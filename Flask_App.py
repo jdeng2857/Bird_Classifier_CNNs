@@ -1,4 +1,4 @@
-from flask import Flask, render_template, url_for, send_from_directory
+from flask import Flask, render_template, url_for, send_from_directory, send_file
 from flask_wtf import FlaskForm
 from wtforms import FileField, SubmitField
 from wtforms.validators import InputRequired
@@ -12,6 +12,18 @@ from PIL import Image
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'supersecretkey'
 app.config['UPLOAD_FOLDER'] = 'static/files'
+app.config['CLASS_FOLDER'] = 'classes'
+
+def all_class_images():
+    csv_df = pd.read_csv("birds.csv")
+    dataset = pd.DataFrame(csv_df).to_numpy()
+    filepaths = dataset[:, 1]
+    class_ids = dataset[:, 0]
+    train_ids = class_ids[:81950]
+    train_filepaths = filepaths[:81950]
+    id_to_filepaths = dict(zip(train_ids, train_filepaths))
+    return id_to_filepaths
+CLASS_IMAGES = all_class_images()
 
 class UploadFileForm(FlaskForm):
     file = FileField("File", validators=[InputRequired()])
@@ -20,6 +32,11 @@ class UploadFileForm(FlaskForm):
 @app.route('/uploads/<filename>')
 def get_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/classes/<url>')
+def get_class_image(url):
+    return send_from_directory(app.config['CLASS_FOLDER'], url)
+    # return send_from_directory(app.config['CLASS_FOLDER'], filename)
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/home', methods=['GET', 'POST'])
@@ -33,23 +50,25 @@ def home():
             secure_filename(file.filename)
         )
         file.save(filepath)
-        print(filepath)
-        predicted_class = classifyImage(filepath)
-        print(file.filename)
-        print(app.config['UPLOAD_FOLDER'])
+        predicted_id, predicted_class = classifyImage(filepath)
         image_url = "/uploads/" + file.filename
+
+        class_image_url = "/classes/" + str(int(predicted_id)) + ".jpg"
+        print("class image url")
+        print(class_image_url)
 
         return render_template(
             'index.html',
             form=form,
             image_url=image_url,
+            class_image_url = class_image_url,
             predicted_class=predicted_class
         )
 
     return render_template('index.html', form=form)
 
 def classifyImage(filepath):
-    one_epoch_model = tf.keras.models.load_model("batch_normalized_1_epoch")
+    one_epoch_model = tf.keras.models.load_model("batch_normalized_5_epochs")
     one_epoch_model.summary()
 
     test_image = Image.open(filepath).resize((224, 224))
@@ -63,11 +82,11 @@ def classifyImage(filepath):
     dataset = pd.DataFrame(csv_df).to_numpy()
     labels = dataset[:, 2]
     class_ids = dataset[:, 0]
-    id_to_name = dict(zip(class_ids, labels))
+    id_to_names = dict(zip(class_ids, labels))
+    predicted_id = classes_x[0]
+    predicted_class = id_to_names[classes_x[0]]
 
-    predicted_class = id_to_name[classes_x[0]]
-
-    return predicted_class
+    return predicted_id, predicted_class
 
 if __name__ == '__main__':
     app.run(debug=True)
