@@ -14,18 +14,42 @@
         {{form.submit()}}
     </form>
 
-    {% if predicted_class %}
-        <h3>Predicted bird species: {{predicted_class}}</h3>
-    {% endif %}
-
     {% if image_url %}
         <h4>Uploaded Image: </h4>
         <img src="{{image_url}}" alt="Uploaded image"/>
     {% endif %}
 
+    {% if predicted_class %}
+        <h3>Predicted bird species: {{predicted_class}}</h3>
+    {% endif %}
+
+    {% if predicted_prob %}
+        <h3>Predicted probability: {{predicted_prob}}</h3>
+    {% endif %}
+
     {% if class_image_url %}
         <h4>Class Image: </h4>
         <img src="{{class_image_url}}" alt="Class image"/>
+    {% endif %}
+
+    {% if top_classes and top_probs %}
+        <h3>Top 5 Predictions: </h3>
+        <table>
+            <tr>
+                <th>Class</th>
+                <th>Probability</th>
+                <th>Image</th>
+            </tr>
+            {% for i in range(5) %}
+                <tr>
+                    <td>{{top_classes[i]}}</td>
+                    <td>{{top_probs[i]}}</td>
+                    <td>
+                        <img src="{{class_images[i]}}" alt="Class image"/>
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
     {% endif %}
 </body>
 </html>
