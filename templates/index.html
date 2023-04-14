@@ -12,7 +12,12 @@
         {{form.hidden_tag()}}
         {{form.file()}}
         {{form.submit()}}
+        {{form.select()}}
     </form>
+
+    {% if model_name %}
+        <h3>Selected Model: {{model_name}}</h3>
+    {% endif %}
 
     {% if image_url %}
         <h4>Uploaded Image: </h4>

@@ -1,6 +1,6 @@
 from flask import Flask, render_template, url_for, send_from_directory, send_file
 from flask_wtf import FlaskForm
-from wtforms import FileField, SubmitField
+from wtforms import FileField, SubmitField, SelectField
 from wtforms.validators import InputRequired
 from werkzeug.utils import secure_filename
 import os
@@ -13,7 +13,13 @@ app = Flask(__name__, template_folder='templates')
 app.config['SECRET_KEY'] = 'supersecretkey'
 app.config['UPLOAD_FOLDER'] = 'static/files'
 app.config['CLASS_FOLDER'] = 'classes'
-
+app.config['MODELS'] = [
+    "batch_normalized_1_epoch",
+    "batch_normalized_5_epochs",
+    "batch_normalized_10_epochs",
+    "batch_normalized_two_dense",
+    "batch_normalized_with_minmax_scaling"
+]
 
 def all_class_images():
     csv_df = pd.read_csv("birds.csv")
@@ -32,6 +38,7 @@ CLASS_IMAGES = all_class_images()
 class UploadFileForm(FlaskForm):
     file = FileField("File", validators=[InputRequired()])
     submit = SubmitField("Upload and Classify Image")
+    select = SelectField("Select ML Model", choices=app.config['MODELS'], validators=[InputRequired()])
 
 
 @app.route('/uploads/<filename>')
@@ -57,7 +64,10 @@ def home():
             secure_filename(file.filename)
         )
         file.save(filepath)
-        predicted_id, predicted_class, predicted_prob, top_ids, top_probs, top_classes = classifyImage(filepath)
+
+        model_name = form.select.data
+
+        predicted_id, predicted_class, predicted_prob, top_ids, top_probs, top_classes = classifyImage(filepath, model_name)
         image_url = "/uploads/" + file.filename
 
         class_images = []
@@ -78,19 +88,21 @@ def home():
             top_ids=top_ids,
             top_probs=top_probs,
             top_classes=top_classes,
-            class_images=class_images
+            class_images=class_images,
+            model_name=model_name,
         )
 
     return render_template('index.html', form=form)
 
 
-def classifyImage(filepath):
-    one_epoch_model = tf.keras.models.load_model("batch_normalized_5_epochs")
-    one_epoch_model.summary()
+def classifyImage(filepath, model_name="batch_normalized_5_epochs"):
+    one_epoch_model = tf.keras.models.load_model(model_name)
+    # one_epoch_model.summary()
 
     test_image = Image.open(filepath).resize((224, 224))
     image_array = np.expand_dims(np.asarray(test_image), axis=0)
-    predict_x = one_epoch_model.predict(image_array)
+    # predict_x = one_epoch_model.predict(image_array)
+    predict_x = one_epoch_model(image_array, training=False).numpy()
     classes_x = np.argmax(predict_x, axis=1)
     print(classes_x)
     predictions = predict_x[0]
