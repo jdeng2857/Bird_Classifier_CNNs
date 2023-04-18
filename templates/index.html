@@ -19,6 +19,11 @@
         <h3>Selected Model: {{model_name}}</h3>
     {% endif %}
 
+    {% if model_summary %}
+        <h3>Model Summary: </h3>
+        <p>{{model_summary}}</p>
+    {% endif %}
+
     {% if image_url %}
         <h4>Uploaded Image: </h4>
         <img src="{{image_url}}" alt="Uploaded image"/>

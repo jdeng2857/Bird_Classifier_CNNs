@@ -1,3 +1,5 @@
+import io
+
 from flask import Flask, render_template, url_for, send_from_directory, send_file
 from flask_wtf import FlaskForm
 from wtforms import FileField, SubmitField, SelectField
@@ -14,7 +16,11 @@ app.config['SECRET_KEY'] = 'supersecretkey'
 app.config['UPLOAD_FOLDER'] = 'static/files'
 app.config['CLASS_FOLDER'] = 'classes'
 app.config['MODELS'] = [
+    "base_5_epochs",
+    "base_batch_normalized",
     "batch_normalized_1_epoch",
+    "batch_normalized_2_dense",
+    "batch_normalized_3_dense_5_epochs",
     "batch_normalized_5_epochs",
     "batch_normalized_10_epochs",
     "batch_normalized_two_dense",
@@ -67,7 +73,8 @@ def home():
 
         model_name = form.select.data
 
-        predicted_id, predicted_class, predicted_prob, top_ids, top_probs, top_classes = classifyImage(filepath, model_name)
+        predicted_id, predicted_class, predicted_prob, top_ids, top_probs, top_classes, model_summary = \
+            classifyImage(filepath, model_name)
         image_url = "/uploads/" + file.filename
 
         class_images = []
@@ -90,6 +97,7 @@ def home():
             top_classes=top_classes,
             class_images=class_images,
             model_name=model_name,
+            model_summary=model_summary,
         )
 
     return render_template('index.html', form=form)
@@ -97,7 +105,13 @@ def home():
 
 def classifyImage(filepath, model_name="batch_normalized_5_epochs"):
     one_epoch_model = tf.keras.models.load_model(model_name)
-    # one_epoch_model.summary()
+
+    # https://stackoverflow.com/questions/41665799/keras-model-summary-object-to-string
+    stringlist = []
+    one_epoch_model.summary(print_fn=lambda x: stringlist.append(x))
+    model_summary = "\n".join(stringlist)
+    print("model summary")
+    print(model_summary)
 
     test_image = Image.open(filepath).resize((224, 224))
     image_array = np.expand_dims(np.asarray(test_image), axis=0)
@@ -126,7 +140,7 @@ def classifyImage(filepath, model_name="batch_normalized_5_epochs"):
     top_classes = [id_to_names[i] for i in top_indices]
     print(top_classes)
 
-    return predicted_id, predicted_class, predicted_prob, top_indices, top_probs, top_classes
+    return predicted_id, predicted_class, predicted_prob, top_indices, top_probs, top_classes, model_summary
 
 if __name__ == '__main__':
     app.run(debug=True)
