@@ -19,16 +19,13 @@ class BirdDataGenerator(tf.keras.utils.Sequence):
         self.batch_size = batch_size
         self.dataset = pd.DataFrame(self.csv_df).to_numpy()
 
-        self.labels = self.dataset[:,2]
-        self.img_filepaths = self.dataset[:,1]
-        self.class_ids = self.dataset[:,0]
+        self.labels = self.dataset[:, 2]
+        self.img_filepaths = self.dataset[:, 1]
+        self.class_ids = self.dataset[:, 0]
 
         (x,) = self.img_filepaths.shape
-        print(self.dataset.shape)
-        print(self.img_filepaths[0])
         image = Image.open(self.img_filepaths[0])
         image_array = np.expand_dims(np.asarray(image), axis=0)
-        print(image_array.shape)
 
     def __len__(self):
         # batches_per_epoch is the total number of batches used for one epoch
@@ -43,8 +40,10 @@ class BirdDataGenerator(tf.keras.utils.Sequence):
         y = None
 
         for curr_id in batch_ids:
-            image = Image.open(self.img_filepaths[curr_id]).resize((224,224))
-            image_array = np.expand_dims(np.asarray(image),axis=0)
+            image = Image.open(self.img_filepaths[curr_id]).resize((224, 224))
+            image_array = np.array(image)
+
+            image_array = np.expand_dims(np.asarray(image), axis=0)
 
             if x is None:
                 x = image_array
@@ -54,33 +53,44 @@ class BirdDataGenerator(tf.keras.utils.Sequence):
                 y = np.vstack((y, self.class_ids[curr_id]))
 
         y = tf.keras.utils.to_categorical(y, num_classes=511)
+
         return x, y
+
+    def on_epoch_end(self):
+        np.random.shuffle(self.split_ids)
 
 use_rows = list(range(0,87050))
 bird_data_generator = BirdDataGenerator(csv_file="birds.csv", use_rows=use_rows, batch_size=128)
 bird_data_generator.__getitem__(0)
 
+
 def bird_cnn_model(csv_file):
     model = Sequential([
-        InputLayer(input_shape=(224,224,3)),
-        Conv2D(filters=32, kernel_size=3, activation='relu'),
+        InputLayer(input_shape=(224, 224, 3)),
+
+        Conv2D(filters=8, kernel_size=3, activation='relu'),
         BatchNormalization(),
         MaxPooling2D(pool_size=2),
+        BatchNormalization(),
         Flatten(),
+        Dense(128, activation="relu"),
+        Dense(128, activation="relu"),
         Dense(511, activation="softmax")
     ])
 
     optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3)
-    model.compile(loss="categorical_crossentropy", optimizer = optimizer, metrics=["accuracy"])
+    model.compile(loss="categorical_crossentropy", optimizer=optimizer, metrics=["accuracy"])
 
     print(model.summary())
-    train_rows = list(range(0,81950))
+    train_rows = list(range(0, 81950))
     train_generator = BirdDataGenerator(csv_file=csv_file, use_rows=train_rows, batch_size=64)
-    h = model.fit(x=train_generator, epochs=10, verbose=1)
+    validation_rows = list(range(84500, 87050))
+    validation_generator = BirdDataGenerator(csv_file=csv_file, use_rows=validation_rows, batch_size=64)
+    h = model.fit(x=train_generator, epochs=1, verbose=1, validation_data=validation_generator)
     print(h)
 
     test_rows = list(range(81950, 84500))
-    test_generator = BirdDataGenerator(csv_file=csv_file, use_rows=test_rows, batch_size=128)
+    test_generator = BirdDataGenerator(csv_file=csv_file, use_rows=test_rows, batch_size=64)
     model.evaluate(x=test_generator)
 
     return model
@@ -107,3 +117,6 @@ label_mapping = {}
 id_to_name = dict(zip(class_ids, labels))
 print(id_to_name)
 print(id_to_name[classes_x[0]])
+
+cnn_model = bird_cnn_model("birds.csv")
+cnn_model.save("bsaved_model")
